@@ -1,12 +1,41 @@
 import bcrypt from "bcryptjs"
 import User from "../models/user.model.js"
 import { generateJWT } from "../utils/JsonWebTokens.js"
-export const logIn=(req,res)=>{
-    res.send("LogIn")
-
-}
 export const logOut=(req,res)=>{
-    res.send('Logout')
+    try{
+    res.cookie("jwt","",{maxAge:0})
+    res.status(200).json({success:true,message:"Logged Out Successfully"})
+    }
+    catch(error){
+        console.log("Error in Logout Controller",error.message)
+        res.status(505).json({success:false,message:"Internal Server Error"})
+
+    }
+}
+export const logIn= async (req,res)=>{
+    
+    const {userName,password}=req.body
+    try {
+        const user=await User.findOne({userName})
+        const isValidPassword= await bcrypt.compare(password,user.password||"")
+        if(user && isValidPassword){
+            generateJWT(user._id,res)
+            res.status(200).json({success:true,
+                _id:user._id,
+                fullName:user.fullName,
+                userName:user.userName,
+                profilePic:user.profilePic,
+
+            })
+        }
+        else{
+            res.status(400).json({success:false,message:"Invalid Login Credentials"})
+        }
+    } catch (error) {
+        console.log("Error in Login",error.message)
+        res.status(505).json({success:false,message:"Internal Server Error"})
+        
+    }
 
 }
 export const signUp= async (req,res)=>{
@@ -33,7 +62,7 @@ export const signUp= async (req,res)=>{
         if(newUser){
             generateJWT(newUser._id,res)
             await newUser.save()
-            res.status(201).json({success:true,id:newUser._id,
+            res.status(201).json({success:true,_id:newUser._id,
                 fullName:newUser.fullName,
                 userName:newUser.userName,
                 profilePic:newUser.profilePic,
